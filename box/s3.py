@@ -16,7 +16,7 @@ class Bucket:
     s3_subdomain = 's3'
 
     more_headers = ''
-    debug = False
+    debug = True
 
     def __init__(self, env='local'):
         self.method = None
@@ -46,6 +46,7 @@ class Bucket:
         hostname = self.bucket_name + '.' + hostname
         is_put = method == 'PUT' and os.path.exists(filename)
         self.is_put = is_put
+        is_delete = method == 'DELETE'
 
         headers = self.method + ' /' + self.path + ' HTTP/1.0\n'
         headers += 'Host: ' + hostname + '\n'
@@ -57,6 +58,8 @@ class Bucket:
             filesize = str(os.path.getsize(filename))
             headers += 'Content-type: ' + self.type + '\n'
             headers += 'Content-length: ' + filesize + '\n'
+        if is_delete:
+            headers += 'Content-type: application/octet-stream\n'
         headers += '\n'
 
         s = socket.socket()

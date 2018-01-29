@@ -26,13 +26,17 @@ class EventHandler(PatternMatchingEventHandler):
         # the file will be processed there
         # print(event.src_path, event.event_type)  # print now only for degug
         # print(event.__dict__)
-        # print('------------------------------')
+        # print(event.event_type, event.src_path, filename)
+
         filename = self._filename(event.src_path)
-        print(event.event_type, event.src_path, filename)
 
         if event.event_type == 'created':
             print('put', event.src_path, filename)
             self.bucket.put(event.src_path, filename)
+
+        elif event.event_type == 'deleted':
+            print('deleted', event.src_path, filename)
+            self.bucket.delete(filename)
 
     def _filename(self, path):
         return re.sub(r'.*\/([^\/]+)$', r'\1', path)
