@@ -5,9 +5,9 @@ from watchdog.events import PatternMatchingEventHandler
 class EventHandler(PatternMatchingEventHandler):
     patterns = ['*']
 
-    def __init__(self, bucket=None, patterns=None, ignore_patterns=None,
+    def __init__(self, box=None, patterns=None, ignore_patterns=None,
                  ignore_directories=False, case_sensitive=False):
-        self.bucket = bucket
+        self.box = box
         super(PatternMatchingEventHandler, self).__init__()
         self._patterns = patterns
         self._ignore_patterns = ignore_patterns
@@ -32,11 +32,11 @@ class EventHandler(PatternMatchingEventHandler):
 
         if event.event_type == 'created':
             print('put', event.src_path, filename)
-            self.bucket.put(event.src_path, filename)
+            self.box.bucket.put(event.src_path, filename)
 
         elif event.event_type == 'deleted':
             print('deleted', event.src_path, filename)
-            self.bucket.delete(filename)
+            self.box.bucket.delete(filename)
 
     def _filename(self, path):
         return re.sub(r'.*\/([^\/]+)$', r'\1', path)

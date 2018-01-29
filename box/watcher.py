@@ -5,11 +5,11 @@ from event_handler import EventHandler
 
 class Watcher:
 
-    def __init__(self, path, bucket):
+    def __init__(self, path, box):
         self.path = path
-        self.bucket = bucket
+        self.box = box
         self.observer = Observer()
-        self.observer.schedule(EventHandler(self.bucket), path=self.path, recursive=True)
+        self.observer.schedule(EventHandler(self.box), path=self.path, recursive=True)
         self.observer.start()
 
         try:

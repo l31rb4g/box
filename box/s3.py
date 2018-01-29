@@ -6,6 +6,7 @@ import hmac
 import os.path
 from hashlib import sha1
 from time import sleep
+from subprocess import check_output
 
 
 class Bucket:
@@ -21,7 +22,7 @@ class Bucket:
     def __init__(self, env='local'):
         self.method = None
         self.path = None
-        self.type = ''
+        self.mimetype = ''
         self.date = None
         self._set_credentials()
 
@@ -34,7 +35,7 @@ class Bucket:
             self.access_key = credentials[0]
             self.secret_key = credentials[1]
 
-    def _request(self, method='GET', path='/', filename=None):
+    def _request(self, method='GET', path='', filename=None):
         self.method = method
         if path == '/':
             path = ''
@@ -44,23 +45,25 @@ class Bucket:
         self.date = self.date.strftime('%a, %d %b %Y %H:%M:%S ') + zone
         hostname = self.s3_subdomain + '.amazonaws.com'
         hostname = self.bucket_name + '.' + hostname
-        is_put = method == 'PUT' and os.path.exists(filename)
-        self.is_put = is_put
-        is_delete = method == 'DELETE'
+
+        self._set_mimetype()
 
         headers = self.method + ' /' + self.path + ' HTTP/1.0\n'
         headers += 'Host: ' + hostname + '\n'
         headers += 'Date: ' + self.date + '\n'
-        headers += 'Authorization: ' + self.auth().decode() + '\n'
+        headers += 'Authorization: ' + self._auth().decode() + '\n'
         headers += 'Connection: close\n'
         headers += self.more_headers
-        if is_put:
-            filesize = str(os.path.getsize(filename))
-            headers += 'Content-type: ' + self.type + '\n'
-            headers += 'Content-length: ' + filesize + '\n'
-        if is_delete:
-            headers += 'Content-type: application/octet-stream\n'
+
+        if method == 'PUT':
+            filesize = os.path.getsize(filename)
+            headers += 'Content-type: ' + self.mimetype + '\n'
+            headers += 'Content-length: ' + str(filesize) + '\n'
+        elif method == 'DELETE':
+            headers += 'Content-type: ' + self.mimetype + '\n'
         headers += '\n'
+
+        print(headers)
 
         s = socket.socket()
         s.settimeout(30)
@@ -71,16 +74,24 @@ class Bucket:
             return False
         s.send(headers.encode())
 
-        if is_put:
-            f = open(filename, 'rb')
+        if method == 'PUT':
             headers += '--- data ---\n\n'
-            for chunk in f:
-                try:
-                    s.send(chunk)
-                except Exception as e:
-                    print('unable to send data')
-                    return False
-            f.close()
+            sent = 0
+            with open(filename, 'rb') as f:
+                while True:
+                    chunk = f.read(4096)
+                    try:
+                        s.send(chunk)
+                        sent += len(chunk)
+                        if self.debug:
+                            print('\r>>> sending {} - {}% '.format(filename, round(sent / filesize * 100)), end='', flush=True)
+                    except Exception as e:
+                        print('unable to send data')
+                        print(e)
+                        return False
+                    if not chunk:
+                        break
+                print('\n')
             try:
                 s.send(b'\n\n')
             except Exception as e:
@@ -103,21 +114,28 @@ class Bucket:
 
         return s
 
-    def auth(self):
-        if not self.type and self.is_put:
-            self.type = 'application/octet-stream'
+    def _set_mimetype(self):
+        _mime = check_output(['mimetype', self.path]).decode()
+        self.mimetype = re.sub('.*: (.*)\n$', r'\1', _mime)
+        if not self.mimetype:
+            self.mimetype = 'application/octet-stream'
+        if self.debug:
+            print('\n>>> Mimetype computed: {}'.format(self.mimetype))
+
+    def _auth(self):
         if re.findall('\?', self.path):
             self.path = re.findall('([^\?]+)\?(.*)', self.path)[0][0]
-        r = self.method + '\n\n' + self.type + '\n' + self.date + '\n' + '/' + self.bucket_name + '/' + self.path
-
-        if self.debug:
-            print('\n============\n' + r + '\n============\n')
+        auth_line = self.method + '\n\n' + self.mimetype + '\n' + self.date + '\n' + '/' + self.bucket_name + '/' + self.path
 
         r = base64.b64encode(hmac.new(
             self.secret_key.encode(),
-            r.encode(),
+            auth_line.encode(),
             sha1).digest())
         r = b'AWS ' + self.access_key.encode() + b':' + r
+
+        if self.debug:
+            print('\n============ auth ============\n' + auth_line + '\n============ /auth ============\n')
+
         return r
 
     def add_header(self, key, value):
