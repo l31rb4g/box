@@ -14,7 +14,7 @@ class EventHandler(PatternMatchingEventHandler):
         self._ignore_directories = ignore_directories
         self._case_sensitive = case_sensitive
 
-    def process(self, event):
+    def _process(self, event):
         """
         event.event_type
             'modified' | 'created' | 'moved' | 'deleted'
@@ -27,18 +27,24 @@ class EventHandler(PatternMatchingEventHandler):
         # print(event.src_path, event.event_type)  # print now only for degug
         # print(event.__dict__)
         # print('------------------------------')
+        filename = self._filename(event.src_path)
+        print(event.event_type, event.src_path, filename)
+
+        if event.event_type == 'created':
+            print('put', event.src_path, filename)
+            self.bucket.put(event.src_path, filename)
+
+    def _filename(self, path):
+        return re.sub(r'.*\/([^\/]+)$', r'\1', path)
 
     def on_modified(self, event):
-        self.process(event)
+        self._process(event)
 
     def on_created(self, event):
-        filename = re.sub(r'.*\/([^\/]+)$', r'\1', event.src_path)
-        self.process(event)
-        print('put', event.src_path, filename)
-        self.bucket.put(event.src_path, filename)
+        self._process(event)
 
     def on_moved(self, event):
-        self.process(event)
+        self._process(event)
 
     def on_deleted(self, event):
-        self.process(event)
+        self._process(event)
