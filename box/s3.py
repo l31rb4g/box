@@ -197,6 +197,15 @@ class Bucket:
                                 'filename': filename
                             }
                             content.append(obj)
+                        else:
+                            if re.findall('/$', key):
+                                obj = {
+                                    # 'key': key,
+                                    'size': size,
+                                    # 'url': self.url('/' + key),
+                                    'filename': key
+                                }
+                                content.append(obj)
         else:
             if self.debug:
                 print(r[0])
