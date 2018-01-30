@@ -47,10 +47,6 @@ class Box:
     def find_missing(self):
         bucket = self.load_bucket()
         folder = self.load_folder()
-        print('bucket')
-        print(bucket)
-        print('folder')
-        print(folder)
         missing = {
             'folder': [],
             'bucket': []
