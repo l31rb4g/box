@@ -4,6 +4,7 @@ import datetime
 import base64
 import hmac
 import os.path
+from urllib.parse import quote_plus
 from hashlib import sha1
 from time import sleep
 from subprocess import check_output
@@ -17,7 +18,7 @@ class Bucket:
     s3_subdomain = 's3'
 
     more_headers = ''
-    debug = True
+    debug = False
 
     def __init__(self, env='local'):
         self.method = None
@@ -39,7 +40,7 @@ class Bucket:
         self.method = method
         if path == '/':
             path = ''
-        self.path = path
+        self.path = quote_plus(path)
         self.date = datetime.datetime.utcnow()
         zone = 'UTC'
         self.date = self.date.strftime('%a, %d %b %Y %H:%M:%S ') + zone
@@ -63,8 +64,6 @@ class Bucket:
             headers += 'Content-type: ' + self.mimetype + '\n'
         headers += '\n'
 
-        print(headers)
-
         s = socket.socket()
         s.settimeout(30)
         try:
@@ -83,8 +82,7 @@ class Bucket:
                     try:
                         s.send(chunk)
                         sent += len(chunk)
-                        if self.debug:
-                            print('\r>>> sending {} - {}% '.format(filename, round(sent / filesize * 100)), end='', flush=True)
+                        print('\r>>> sending {} - {}% '.format(filename, round(sent / filesize * 100)), end='', flush=True)
                     except Exception as e:
                         print('unable to send data')
                         print(e)
@@ -115,12 +113,13 @@ class Bucket:
         return s
 
     def _set_mimetype(self):
-        _mime = check_output(['mimetype', self.path]).decode()
-        self.mimetype = re.sub('.*: (.*)\n$', r'\1', _mime)
-        if not self.mimetype:
-            self.mimetype = 'application/octet-stream'
-        if self.debug:
-            print('\n>>> Mimetype computed: {}'.format(self.mimetype))
+        if self.method in ['PUT']:
+            _mime = check_output(['mimetype', self.path]).decode()
+            self.mimetype = re.sub('.*: (.*)\n$', r'\1', _mime)
+            if not self.mimetype:
+                self.mimetype = 'application/octet-stream'
+            if self.debug:
+                print('\n>>> Mimetype computed: {}'.format(self.mimetype))
 
     def _auth(self):
         if re.findall('\?', self.path):
@@ -143,7 +142,7 @@ class Bucket:
         self.more_headers += header
 
     def split_header(self, r):
-        l = r.split('\r\n\r\n')
+        l = r.split(b'\r\n\r\n')
         responseHeaders = l[0]
         if len(l) > 1:
             l = l[1]
@@ -157,17 +156,18 @@ class Bucket:
         else:
             path = '/'
         s = self._request('GET', path)
-        r = ''
-        l = s.recv(4096)
-        while l:
-            r += l.decode()
+        r = b''
+        while True:
             l = s.recv(4096)
+            if not l:
+                break
+            r += l
         s.close()
 
         content = []
         r = self.split_header(r)
         if r[1]:
-            r = r[1]
+            r = r[1].decode()
             r = r.split('</Contents>')
             for l in r:
                 if re.findall('<Contents>', l):
@@ -183,9 +183,9 @@ class Bucket:
                             else:
                                 filename = key
                             obj = {
-                                'key': key,
+                                # 'key': key,
                                 'size': size,
-                                'url': self.url('/' + key),
+                                # 'url': self.url('/' + key),
                                 'filename': filename
                             }
                             content.append(obj)
@@ -195,13 +195,23 @@ class Bucket:
 
         return content
 
-    def get(self, remote_path, local_path):
+    def get(self, remote_path, local_path, filesize=None):
         s = self._request('GET', remote_path)
-        r = ''
-        l = s.recv(4096)
-        while l:
-            r += l
-            l = s.recv(4096)
+        r = b''
+        received = 0
+        is_header = True
+        while True:
+            chunk = s.recv(4096)
+            if not is_header:
+                received += len(chunk)
+            r += chunk
+            if filesize:
+                print('\r>>> receiving {} - {} bytes - {}% '.format(local_path, filesize, round(received / filesize * 100)), end='', flush=True)
+            if not chunk:
+                break
+            is_header = False
+        print('\n')
+
         if os.path.isdir(local_path):
             filename = re.findall('^(.*)/([^/]+)$', remote_path)[0][1]
             local_path += '/' + filename
@@ -210,7 +220,7 @@ class Bucket:
         a.write(content)
         a.close()
         s.close()
-        if re.findall('<Code>NoSuchKey</Code>', content):
+        if re.findall(b'<Code>NoSuchKey</Code>', content):
             return False
         return local_path
 
