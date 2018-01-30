@@ -70,9 +70,19 @@ class Box:
         print('Missing:')
         print(missing)
         for mf in missing['folder']:
-            self.bucket.get(mf['filename'], self.path + '/' + mf['filename'], mf['size'])
+            filepath = self.path + '/' + mf['filename']
+            if os.path.isdir(filepath):
+                print('create local dir')
+            else:
+                self.bucket.get(mf['filename'], filepath, mf['size'])
+
         for mf in missing['bucket']:
-            self.bucket.put(self.path + '/' + mf['filename'], mf['filename'])
+            filepath = self.path + '/' + mf['filename']
+            if os.path.isdir(filepath):
+                print('puth on bucket', mf['filename'] + '/')
+                self.bucket.mkdir(mf['filename'])
+            else:
+                self.bucket.put(self.path + '/' + filepath, mf['filename'])
 
         print('\nAll synchronized!')
 

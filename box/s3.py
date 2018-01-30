@@ -1,3 +1,4 @@
+import os
 import re
 import socket
 import datetime
@@ -36,7 +37,7 @@ class Bucket:
             self.access_key = credentials[0]
             self.secret_key = credentials[1]
 
-    def _request(self, method='GET', path='', filename=None):
+    def _request(self, method='GET', path='', filename=None, **kwargs):
         self.method = method
         if path == '/':
             path = ''
@@ -56,8 +57,14 @@ class Bucket:
         headers += 'Connection: close\n'
         headers += self.more_headers
 
+        isdir = 'isdir' in kwargs and kwargs['isdir']
+        print('isdir', isdir)
+
         if method == 'PUT':
-            filesize = os.path.getsize(filename)
+            if not isdir:
+                filesize = os.path.getsize(filename)
+            else:
+                filesize = 0
             headers += 'Content-type: ' + self.mimetype + '\n'
             headers += 'Content-length: ' + str(filesize) + '\n'
         elif method == 'DELETE':
@@ -73,42 +80,43 @@ class Bucket:
             return False
         s.send(headers.encode())
 
-        if method == 'PUT':
-            headers += '--- data ---\n\n'
-            sent = 0
-            with open(filename, 'rb') as f:
-                while True:
-                    chunk = f.read(4096)
-                    try:
-                        s.send(chunk)
-                        sent += len(chunk)
-                        print('\r>>> sending {} - {}% '.format(filename, round(sent / filesize * 100)), end='', flush=True)
-                    except Exception as e:
-                        print('unable to send data')
-                        print(e)
-                        return False
-                    if not chunk:
-                        break
-                print('\n')
-            try:
-                s.send(b'\n\n')
-            except Exception as e:
-                print(e)
-                print('unable to end upload')
-                return False
-
-        if self.debug:
-            print(headers + '\n--------------\n')
-            r = ''
-            l = s.recv(4096)
-            while l:
-                r += l.decode()
+        if not isdir:
+            if method == 'PUT':
+                headers += '--- data ---\n\n'
+                sent = 0
+                with open(filename, 'rb') as f:
+                    while True:
+                        chunk = f.read(4096)
+                        try:
+                            s.send(chunk)
+                            sent += len(chunk)
+                            print('\r>>> sending {} - {}% '.format(filename, round(sent / filesize * 100)), end='', flush=True)
+                        except Exception as e:
+                            print('unable to send data')
+                            print(e)
+                            return False
+                        if not chunk:
+                            break
+                    print('\n')
                 try:
-                    l = s.recv(4096)
-                except:
-                    pass
-            print(r)
-            print('\n--------------\n')
+                    s.send(b'\n\n')
+                except Exception as e:
+                    print(e)
+                    print('unable to end upload')
+                    return False
+
+            if self.debug:
+                print(headers + '\n--------------\n')
+                r = ''
+                l = s.recv(4096)
+                while l:
+                    r += l.decode()
+                    try:
+                        l = s.recv(4096)
+                    except:
+                        pass
+                print(r)
+                print('\n--------------\n')
 
         return s
 
@@ -232,6 +240,13 @@ class Bucket:
             print('retrying')
             sleep(3)
             self.put(local_path, remote_path)
+
+
+    def mkdir(self, name):
+        s = self._request('PUT', name + '/', name, isdir=True)
+        if s:
+            s.close()
+
 
     def delete(self, remote_path):
         s = self._request('DELETE', remote_path)

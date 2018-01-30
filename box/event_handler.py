@@ -1,3 +1,4 @@
+import os
 import re
 from watchdog.events import PatternMatchingEventHandler
 
@@ -32,7 +33,10 @@ class EventHandler(PatternMatchingEventHandler):
 
         if event.event_type == 'created':
             print('put', event.src_path, filename)
-            self.box.bucket.put(event.src_path, filename)
+            if os.path.isdir(event.src_path):
+                self.box.bucket.mkdir(filename)
+            else:
+                self.box.bucket.put(event.src_path, filename)
 
         elif event.event_type == 'deleted':
             print('deleted', event.src_path, filename)
