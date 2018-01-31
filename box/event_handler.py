@@ -24,15 +24,14 @@ class EventHandler(PatternMatchingEventHandler):
         event.src_path
             path/to/observed/file
         """
-        print('>>> Event ::', event.event_type, event.src_path)
 
-        filename = self._filename(event.src_path)
-
-        if event.event_type == 'created':
-            self.box.bucket.put(event.src_path, filename)
-
-        elif event.event_type == 'deleted':
-            self.box.bucket.delete(filename)
+        if event.src_path != self.box.path:
+            print('>>> Event ::', event.event_type, event.src_path)
+            filename = self._filename(event.src_path)
+            if event.event_type == 'created':
+                self.box.bucket.put(event.src_path, filename)
+            elif event.event_type == 'deleted':
+                self.box.bucket.delete(filename)
 
     def _filename(self, path):
         return re.sub(r'.*\/([^\/]+)$', r'\1', path)

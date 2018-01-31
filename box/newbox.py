@@ -28,7 +28,6 @@ class Box:
                             _l.append(_path)
                     _l.append(_path + f)
         return _l
-        exit()
 
     def _walk(self):
         _list = {}
@@ -77,21 +76,21 @@ class Box:
 
     def sync(self):
         missing = self.find_missing()
-        print('>>> Box :: Missing files:')
-        print(missing, '\n')
+        print('>>> Box :: Missing files:', missing)
         for mf in missing['folder']:
             filepath = self.path + '/' + mf
             if re.findall('/$', mf) and not os.path.isdir(filepath):
                 print('>>> Box :: Creating directory', filepath)
                 os.mkdir(filepath)
             else:
-                print('>>> Box :: Downloading ' + mf)
+                print('>>> Box :: Downloading', mf)
                 self._create_dirs(filepath)
                 self.bucket.get(mf, filepath)
 
         for mf in missing['bucket']:
             filepath = self.path + '/' + mf
             if not os.path.isdir(filepath):
+                print('>>> Box :: Uploading', mf)
                 self.bucket.put(filepath, mf)
 
         print('>>> Box :: Synchronized!')
@@ -102,9 +101,3 @@ class Box:
         if not os.path.isdir(path):
             print('>>> Box :: Creating directories for', path)
             os.makedirs(path)
-
-
-
-
-if __name__ == '__main__':
-    Box('/media/storage/box')

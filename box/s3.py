@@ -75,7 +75,7 @@ class Bucket:
         try:
             s.connect((hostname, 80))
         except Exception as e:
-            print('Unable to connect')
+            print('>>> S3 :: ERROR: Unable to connect to', hostname)
             return False
         s.send(headers.encode())
 
@@ -90,19 +90,20 @@ class Bucket:
                             s.send(chunk)
                             sent += len(chunk)
                             if filesize > 0:
-                                print('\r>>> S3 :: Uploading {} - {}% '.format(filename, round(sent / filesize * 100)), end='', flush=True)
+                                _msg = '\r>>> S3 :: Uploading {} - {}% '.format(path, round(sent / filesize * 100))
+                                print(_msg, end='', flush=True)
                         except Exception as e:
-                            print('unable to send data')
+                            print('>>> S3 :: ERROR: Unable to send data')
                             print(e)
                             return False
                         if not chunk:
                             break
-                    print('\n')
+                    print('')
                 try:
                     s.send(b'\n\n')
                 except Exception as e:
+                    print('>>> S3 :: ERROR: Unable to finish upload')
                     print(e)
-                    print('unable to end upload')
                     return False
 
             if self.debug:
@@ -190,7 +191,7 @@ class Bucket:
                 received += len(chunk)
             r += chunk
             if filesize:
-                print('\r>>> receiving {} - {} bytes - {}% '.format(local_path, filesize, round(received / filesize * 100)), end='', flush=True)
+                print('\r>>> S3 :: Downloading {} - {} bytes - {}% '.format(local_path, filesize, round(received / filesize * 100)), end='', flush=True)
             if not chunk:
                 break
             is_header = False
@@ -220,6 +221,7 @@ class Bucket:
 
 
     def delete(self, remote_path):
+        print('>>> S3 :: Deleting', remote_path)
         s = self._request('DELETE', remote_path)
         if s:
             s.close()
