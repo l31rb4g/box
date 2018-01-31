@@ -190,12 +190,10 @@ class Bucket:
             if not is_header:
                 received += len(chunk)
             r += chunk
-            if filesize:
-                print('\r>>> S3 :: Downloading {} - {} bytes - {}% '.format(local_path, filesize, round(received / filesize * 100)), end='', flush=True)
+            print('\r>>> S3 :: Downloading {} - {} bytes '.format(local_path, received), end='', flush=True)
             if not chunk:
                 break
             is_header = False
-        print('\n')
 
         if os.path.isdir(local_path):
             filename = re.findall('^(.*)/([^/]+)$', remote_path)[0][1]
