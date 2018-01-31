@@ -58,7 +58,6 @@ class Bucket:
         headers += self.more_headers
 
         isdir = 'isdir' in kwargs and kwargs['isdir']
-        print('isdir', isdir)
 
         if method == 'PUT':
             if not isdir:
@@ -90,7 +89,8 @@ class Bucket:
                         try:
                             s.send(chunk)
                             sent += len(chunk)
-                            print('\r>>> sending {} - {}% '.format(filename, round(sent / filesize * 100)), end='', flush=True)
+                            if filesize > 0:
+                                print('\r>>> S3 :: Uploading {} - {}% '.format(filename, round(sent / filesize * 100)), end='', flush=True)
                         except Exception as e:
                             print('unable to send data')
                             print(e)
@@ -216,12 +216,6 @@ class Bucket:
             print('retrying')
             sleep(3)
             self.put(local_path, remote_path)
-
-
-    def mkdir(self, name):
-        s = self._request('PUT', name + '/', name, isdir=True)
-        if s:
-            s.close()
 
 
     def delete(self, remote_path):
