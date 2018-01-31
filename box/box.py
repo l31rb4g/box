@@ -1,5 +1,5 @@
-#!/usr/bin/env python
 import os
+import re
 from yaml import load, dump
 from watcher import Watcher
 from s3 import Bucket
@@ -16,7 +16,7 @@ class Box:
         self.bucket = Bucket()
         self.sync()
 
-        self.watcher = Watcher(path, self)
+        self.watcher = Watcher(self.path, self)
 
     def load_bucket(self):
         ls = self.bucket.ls()
@@ -36,6 +36,8 @@ class Box:
         _list = []
         for f in _files:
             if f != '.box':
+                if os.path.isdir(self.path + '/' + f):
+                    f += '/'
                 _list.append({
                     'filename': f,
                     'size': os.path.getsize(self.path + '/' + f)
@@ -52,14 +54,14 @@ class Box:
         for bf in bucket:
             found = False
             for ff in folder:
-                if ff == bf:
+                if ff['filename'] == bf['filename']:
                     found = True
             if not found:
                 missing['folder'].append(bf)
         for ff in folder:
             found = False
             for bf in bucket:
-                if ff == bf:
+                if ff['filename'] == bf['filename']:
                     found = True
             if not found:
                 missing['bucket'].append(ff)
@@ -71,18 +73,17 @@ class Box:
         print(missing)
         for mf in missing['folder']:
             filepath = self.path + '/' + mf['filename']
-            if os.path.isdir(filepath):
-                print('create local dir')
+            if re.findall('/$', mf['filename']) and not os.path.isdir(filepath):
+                os.mkdir(filepath)
             else:
                 self.bucket.get(mf['filename'], filepath, mf['size'])
 
         for mf in missing['bucket']:
             filepath = self.path + '/' + mf['filename']
             if os.path.isdir(filepath):
-                print('puth on bucket', mf['filename'] + '/')
                 self.bucket.mkdir(mf['filename'])
             else:
-                self.bucket.put(self.path + '/' + filepath, mf['filename'])
+                self.bucket.put(filepath, mf['filename'])
 
         print('\nAll synchronized!')
 

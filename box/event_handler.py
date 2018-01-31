@@ -26,7 +26,6 @@ class EventHandler(PatternMatchingEventHandler):
         """
         # the file will be processed there
         # print(event.src_path, event.event_type)  # print now only for degug
-        # print(event.__dict__)
         # print(event.event_type, event.src_path, filename)
 
         filename = self._filename(event.src_path)
