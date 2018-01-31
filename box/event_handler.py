@@ -29,7 +29,8 @@ class EventHandler(PatternMatchingEventHandler):
             print('>>> Event ::', event.event_type, event.src_path)
             filename = self._filename(event.src_path)
             if event.event_type == 'created':
-                self.box.bucket.put(event.src_path, filename)
+                remote_path = event.src_path.replace(self.box.path + '/', '')
+                self.box.bucket.put(event.src_path, remote_path)
             elif event.event_type == 'deleted':
                 self.box.bucket.delete(filename)
 
