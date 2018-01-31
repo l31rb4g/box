@@ -209,13 +209,14 @@ class Bucket:
         return local_path
 
     def put(self, local_path, remote_path):
-        s = self._request('PUT', remote_path, local_path)
-        if s:
-            s.close()
-        else:
-            print('retrying')
-            sleep(3)
-            self.put(local_path, remote_path)
+        if os.path.isfile(local_path):
+            s = self._request('PUT', remote_path, local_path)
+            if s:
+                s.close()
+            else:
+                print('retrying')
+                sleep(3)
+                self.put(local_path, remote_path)
 
 
     def delete(self, remote_path):

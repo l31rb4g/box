@@ -94,7 +94,7 @@ class Box:
             if not os.path.isdir(filepath):
                 self.bucket.put(filepath, mf)
 
-        print('\nSynchronized!')
+        print('>>> Box :: Synchronized!')
 
 
     def _create_dirs(self, filepath):
