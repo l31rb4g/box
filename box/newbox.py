@@ -58,24 +58,18 @@ class Box:
 
     def find_missing(self):
         bucket = self.bucket.ls()
+        print(bucket)
         folder = self._list()
+        print(folder)
         missing = {
             'folder': [],
             'bucket': []
         }
         for bf in bucket:
-            found = False
-            for ff in folder:
-                if ff == bf:
-                    found = True
-            if not found:
+            if bf not in folder:
                 missing['folder'].append(bf)
         for ff in folder:
-            found = False
-            for bf in bucket:
-                if ff == bf:
-                    found = True
-            if not found:
+            if ff not in bucket:
                 missing['bucket'].append(ff)
         return missing
 
