@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os
+import re
 from yaml import load, dump
 from s3 import Bucket
 
@@ -11,30 +12,7 @@ class Box:
     def __init__(self, path):
         self.path = path
         self.bucket = Bucket()
-        print(self.find_missing())
-
-    def find_missing(self):
-        bucket = self.bucket.ls()
-        folder = self._list()
-        missing = {
-            'folder': [],
-            'bucket': []
-        }
-        for bf in bucket:
-            found = False
-            for ff in folder:
-                if ff == bf:
-                    found = True
-            if not found:
-                missing['folder'].append(bf)
-        for ff in folder:
-            found = False
-            for bf in bucket:
-                if ff == bf:
-                    found = True
-            if not found:
-                missing['bucket'].append(ff)
-        return missing
+        self.sync()
 
     def _list(self):
         _l = []
@@ -76,7 +54,52 @@ class Box:
         _content = None
         with open(self.path + '/' + self.boxfile, 'r') as f:
             _content = f.read()
-        return load(_content)
+        return _content
+
+    def find_missing(self):
+        bucket = self.bucket.ls()
+        folder = self._list()
+        missing = {
+            'folder': [],
+            'bucket': []
+        }
+        for bf in bucket:
+            found = False
+            for ff in folder:
+                if ff == bf:
+                    found = True
+            if not found:
+                missing['folder'].append(bf)
+        for ff in folder:
+            found = False
+            for bf in bucket:
+                if ff == bf:
+                    found = True
+            if not found:
+                missing['bucket'].append(ff)
+        return missing
+
+    def sync(self):
+        missing = self.find_missing()
+        print('Missing:')
+        print(missing)
+        for mf in missing['folder']:
+            filepath = self.path + '/' + mf
+            if re.findall('/$', mf) and not os.path.isdir(filepath):
+                print('mkdir', filepath)
+                os.mkdir(filepath)
+            else:
+                print('bucket download')
+                self.bucket.get(mf, filepath)
+
+        for mf in missing['bucket']:
+            filepath = self.path + '/' + mf
+            if os.path.isdir(filepath):
+                print('mkdir bucket', filepath)
+                #self.bucket.mkdir(mf['filename'])
+            else:
+                self.bucket.put(filepath, mf)
+
 
 
 if __name__ == '__main__':
