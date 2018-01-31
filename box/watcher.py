@@ -12,7 +12,7 @@ class Watcher:
         self.observer.schedule(EventHandler(self.box), path=self.path, recursive=True)
         self.observer.start()
 
-        print('>>> Watcher :: Running on', self.path)
+        print('>>> Watcher :: Watching', self.path)
 
         try:
             while True:
