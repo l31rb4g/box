@@ -10,11 +10,31 @@ class Box:
 
     def __init__(self, path):
         self.path = path
-        # _content = self._walk()
-        # self._write_boxfile(dump(_content))
-        # self.bucket = Bucket()
-        # print(self.bucket.ls())
-        self._list()
+        self.bucket = Bucket()
+        print(self.find_missing())
+
+    def find_missing(self):
+        bucket = self.bucket.ls()
+        folder = self._list()
+        missing = {
+            'folder': [],
+            'bucket': []
+        }
+        for bf in bucket:
+            found = False
+            for ff in folder:
+                if ff == bf:
+                    found = True
+            if not found:
+                missing['folder'].append(bf)
+        for ff in folder:
+            found = False
+            for bf in bucket:
+                if ff == bf:
+                    found = True
+            if not found:
+                missing['bucket'].append(ff)
+        return missing
 
     def _list(self):
         _l = []
@@ -27,7 +47,7 @@ class Box:
                         if _path not in _l:
                             _l.append(_path)
                     _l.append(_path + f)
-        print(_l)
+        return _l
 
     def _walk(self):
         _list = {}

@@ -19,7 +19,7 @@ class Bucket:
     s3_subdomain = 's3'
 
     more_headers = ''
-    debug = True
+    debug = False
 
     def __init__(self, env='local'):
         self.method = None
@@ -167,49 +167,16 @@ class Bucket:
         r = b''
         while True:
             l = s.recv(4096)
+            r += l
             if not l:
                 break
-            r += l
         s.close()
-
         content = []
-        r = self.split_header(r)
-        if r[1]:
-            r = r[1].decode()
-            r = r.split('</Contents>')
-            for l in r:
-                if re.findall('<Contents>', l):
-                    c = l.split('<Contents>')[1]
-                    key = re.findall('<Key>(.*)</Key>', c)[0]
-                    size = re.findall('<Size>(.*)</Size>', c)
-                    if size:
-                        size = int(size[0])
-                        if size > 0:
-                            filename = re.findall('(.*)/([^/]+)$', key)
-                            if filename:
-                                filename = filename[0][1]
-                            else:
-                                filename = key
-                            obj = {
-                                # 'key': key,
-                                'size': size,
-                                # 'url': self.url('/' + key),
-                                'filename': filename
-                            }
-                            content.append(obj)
-                        else:
-                            if re.findall('/$', key):
-                                obj = {
-                                    # 'key': key,
-                                    'size': size,
-                                    # 'url': self.url('/' + key),
-                                    'filename': key
-                                }
-                                content.append(obj)
-        else:
-            if self.debug:
-                print(r[0])
-
+        r = r.decode().split('<Key>')
+        r.pop(0)
+        for l in r:
+            f = l.split('</Key>')[0]
+            content.append(f)
         return content
 
     def get(self, remote_path, local_path, filesize=None):
