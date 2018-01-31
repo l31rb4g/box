@@ -26,7 +26,7 @@ class EventHandler(PatternMatchingEventHandler):
         """
 
         if event.src_path != self.box.path:
-            print('>>> Event ::', event.event_type, event.src_path)
+            # print('>>> Event ::', event.event_type, event.src_path)
             filename = self._filename(event.src_path)
             remote_path = event.src_path.replace(self.box.path + '/', '')
             if event.event_type == 'created':
