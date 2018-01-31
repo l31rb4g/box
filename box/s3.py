@@ -19,7 +19,7 @@ class Bucket:
     s3_subdomain = 's3'
 
     more_headers = ''
-    debug = False
+    debug = True
 
     def __init__(self, env='local'):
         self.method = None
