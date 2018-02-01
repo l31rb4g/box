@@ -9,6 +9,7 @@ from urllib.parse import quote_plus
 from hashlib import sha1
 from time import sleep
 from subprocess import check_output
+from kde_notification import KdeNotification
 
 
 class Bucket:
@@ -94,7 +95,9 @@ class Bucket:
                             s.send(chunk)
                             sent += len(chunk)
                             if filesize > 0:
-                                _msg = '\r>>> S3 :: Uploading {} - {}% '.format(path, round(sent / filesize * 100))
+                                percent = round(sent / filesize * 100)
+                                _msg = '\r>>> S3 :: Uploading {} - {}% '.format(path, percent)
+                                self.notification.set_percent(percent)
                                 print(_msg, end='', flush=True)
                         except Exception as e:
                             print('>>> S3 :: ERROR: Unable to send data')
@@ -219,9 +222,11 @@ class Bucket:
 
     def put(self, local_path, remote_path):
         if os.path.isfile(local_path):
+            self.notification = KdeNotification()
             s = self._request('PUT', remote_path, local_path)
             if s:
                 s.close()
+                self.notification.terminate('Finished uploading ' + remote_path)
             else:
                 print('retrying')
                 sleep(3)

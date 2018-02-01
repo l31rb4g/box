@@ -7,14 +7,19 @@ class KdeNotification():
 
         create_handle = self._get_dbus_interface('org.kde.kuiserver', '/JobViewServer', 'org.kde.JobViewServer')
         request_path = create_handle.requestView('KdeNotification', 'KDE Notification', 0)
-        request_handle = self._get_dbus_interface('org.kde.kuiserver', request_path, 'org.kde.JobViewV2')
-        request_handle.setInfoMessage('Message here...')
+        self.request_handle = self._get_dbus_interface('org.kde.kuiserver', request_path, 'org.kde.JobViewV2')
+        self.request_handle.setInfoMessage('Box')
 
     def _get_dbus_interface(self, name, path, interface):
         obj = self.session.get_object(name, path)
         return dbus.Interface(obj, dbus_interface=interface)
 
+    def set_percent(self, percent):
+        self.request_handle.setPercent(percent)
+
+    def terminate(self, message=''):
+        self.request_handle.terminate(message)
+
 
 if __name__ == '__main__':
     KdeNotification()
-
