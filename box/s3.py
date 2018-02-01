@@ -28,7 +28,6 @@ class Bucket:
         self.mimetype = ''
         self.date = None
         self._set_credentials()
-        self.notification = KdeNotification()
 
     def _set_credentials(self):
         with open('credentials', 'r') as f:
@@ -223,6 +222,7 @@ class Bucket:
 
     def put(self, local_path, remote_path):
         if os.path.isfile(local_path):
+            self.notification = KdeNotification('Uploading ' + remote_path)
             s = self._request('PUT', remote_path, local_path)
             if s:
                 s.close()
