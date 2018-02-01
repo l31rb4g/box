@@ -89,6 +89,7 @@ class Bucket:
                 headers += '--- data ---\n\n'
                 sent = 0
                 with open(filename, 'rb') as f:
+                    self.notification.set_total_amount(filesize)
                     while True:
                         chunk = f.read(4096)
                         try:
@@ -98,6 +99,7 @@ class Bucket:
                                 percent = round(sent / filesize * 100)
                                 _msg = '\r>>> S3 :: Uploading {} - {}% '.format(path, percent)
                                 self.notification.set_percent(percent)
+                                self.notification.set_processed_amount(sent)
                                 print(_msg, end='', flush=True)
                         except Exception as e:
                             print('>>> S3 :: ERROR: Unable to send data')

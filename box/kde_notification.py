@@ -21,8 +21,13 @@ class KdeNotification():
         self.request_handle.terminate(message)
 
     def set_description(self, description):
-        self.request_handle.setDescriptionField(0, 'foo', description)
+        self.request_handle.setDescriptionField(0, '', description)
 
+    def set_total_amount(self, amount):
+        self.request_handle.setTotalAmount(amount, 'bytes')
+
+    def set_processed_amount(self, amount):
+        self.request_handle.setProcessedAmount(amount, 'bytes')
 
 if __name__ == '__main__':
     KdeNotification()
