@@ -26,11 +26,25 @@ class EventHandler(PatternMatchingEventHandler):
         """
 
         if event.src_path != self.box.path:
-            # print('>>> Event ::', event.event_type, event.src_path)
+            if self.box.DEBUG_LEVEL > 0:
+                print('>>> Event ::', event.event_type, event.src_path)
+
             filename = self._filename(event.src_path)
             remote_path = event.src_path.replace(self.box.path + '/', '')
             if event.event_type == 'created':
                 self.box.bucket.put(event.src_path, remote_path)
+
+            elif event.event_type == 'moved':
+                _from = event.src_path.replace(self.box.path, '')
+                filename = event.dest_path.replace(self.box.path + '/', '')
+                self.box.bucket.copy(_from, filename)
+                self.box.bucket.delete(event.src_path.replace(self.box.path + '/', ''))
+
+            elif event.event_type == 'modified':
+                # self.box.sync()
+                if self.box.DEBUG_LEVEL > 0:
+                    print('>>> Event :: File modified', event.src_path)
+
             elif event.event_type == 'deleted':
                 self.box.bucket.delete(remote_path)
 

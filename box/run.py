@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from newbox import Box
+from box import Box
 
 
 if __name__ == '__main__':

@@ -18,7 +18,7 @@ class Bucket:
     secret_key = ''
     s3_subdomain = 's3'
 
-    more_headers = ''
+    more_headers = {}
     debug = False
 
     def __init__(self, env='local'):
@@ -49,17 +49,17 @@ class Bucket:
         hostname = self.bucket_name + '.' + hostname
 
         self._set_mimetype()
+        _headers = ''
+        for h in self.more_headers:
+            _headers += h + ': ' + self.more_headers[h] + '\n'
 
         headers = self.method + ' /' + self.path + ' HTTP/1.0\n'
         headers += 'Host: ' + hostname + '\n'
-        headers += 'Date: ' + self.date + '\n'
-        headers += 'Authorization: ' + self._auth().decode() + '\n'
-        headers += 'Connection: close\n'
-        headers += self.more_headers
+        headers += _headers
 
         isdir = 'isdir' in kwargs and kwargs['isdir']
 
-        if method == 'PUT':
+        if method == 'PUT' and 'x-amz-copy-source' not in self.more_headers:
             if not isdir:
                 filesize = os.path.getsize(filename)
             else:
@@ -68,6 +68,10 @@ class Bucket:
             headers += 'Content-length: ' + str(filesize) + '\n'
         elif method == 'DELETE':
             headers += 'Content-type: ' + self.mimetype + '\n'
+
+        headers += 'Authorization: ' + self._auth().decode() + '\n'
+        headers += 'Date: ' + self.date + '\n'
+        headers += 'Connection: close\n'
         headers += '\n'
 
         s = socket.socket()
@@ -80,7 +84,7 @@ class Bucket:
         s.send(headers.encode())
 
         if not isdir:
-            if method == 'PUT':
+            if method == 'PUT' and 'x-amz-copy-source' not in self.more_headers:
                 headers += '--- data ---\n\n'
                 sent = 0
                 with open(filename, 'rb') as f:
@@ -106,18 +110,8 @@ class Bucket:
                     print(e)
                     return False
 
-            if self.debug:
-                print(headers + '\n--------------\n')
-                r = ''
-                l = s.recv(4096)
-                while l:
-                    r += l.decode()
-                    try:
-                        l = s.recv(4096)
-                    except:
-                        pass
-                print(r)
-                print('\n--------------\n')
+        if self.debug:
+            print(headers + '\n--------------\n')
 
         return s
 
@@ -133,22 +127,36 @@ class Bucket:
     def _auth(self):
         if re.findall('\?', self.path):
             self.path = re.findall('([^\?]+)\?(.*)', self.path)[0][0]
-        auth_line = self.method + '\n\n' + self.mimetype + '\n' + self.date + '\n' + '/' + self.bucket_name + '/' + self.path
+
+        auth_line = self.method.encode() + b'\n\n'
+
+        if 'x-amz-copy-source' not in self.more_headers:
+            auth_line += self.mimetype.encode()
+
+        auth_line += b'\n' + self.date.encode() + b'\n'
+
+        if 'x-amz-copy-source' in self.more_headers:
+            auth_line += b'x-amz-copy-source:'
+            auth_line += self.more_headers['x-amz-copy-source'].encode() + b'\n'
+
+        auth_line += b'/' + self.bucket_name.encode() + b'/' + self.path.encode()
 
         r = base64.b64encode(hmac.new(
             self.secret_key.encode(),
-            auth_line.encode(),
+            auth_line,
             sha1).digest())
         r = b'AWS ' + self.access_key.encode() + b':' + r
 
         if self.debug:
-            print('\n============ auth ============\n' + auth_line + '\n============ /auth ============\n')
+            print('\n============ auth ============\n' + auth_line.decode().replace('\r', '\\r').replace('\n', '\\n\n') + '\n============ /auth ============\n')
 
         return r
 
-    def add_header(self, key, value):
-        header = key + ': ' + value + '\n'
-        self.more_headers += header
+    def _add_header(self, key, value):
+        self.more_headers[key] = value
+
+    def _clear_headers(self):
+        self.more_headers = {}
 
     def split_header(self, r):
         l = r.split(b'\r\n\r\n')
@@ -169,6 +177,8 @@ class Bucket:
         while True:
             l = s.recv(4096)
             r += l
+            if self.debug:
+                print(l)
             if not l:
                 break
         s.close()
@@ -217,34 +227,35 @@ class Bucket:
                 sleep(3)
                 self.put(local_path, remote_path)
 
-
     def delete(self, remote_path):
         print('>>> S3 :: Deleting', remote_path)
         s = self._request('DELETE', remote_path)
         if s:
+            if self.debug:
+                while True:
+                    r = s.recv(4096)
+                    print(r)
+                    if not r:
+                        break
             s.close()
         else:
             print('retrying')
             sleep(3)
             self.delete(remote_path)
 
-    def file_exists(self, remote_path):
-        r = self.ls(remote_path)
-        return len(r) > 0
+    def copy(self, source_path, filename):
+        self._add_header('x-amz-copy-source', '/' + self.bucket_name + source_path)
+        s = self._request('PUT', filename)
+        self._clear_headers()
+        if s:
+            if self.debug:
+                while True:
+                    r = s.recv(4096)
+                    print(r)
+                    if not r:
+                        break
+                        s.close()
 
-    def move(self, old_path, new_path):
-        """
-        This method get a file in s3 with a old path and
-        put this same file with a new_path
-        old_path = '/media/audios/1.mp3'
-        new_path = '/media/audios/1.ogg'
-        return new_path
-        """
-        temp_path = '/tmp/%s' % os.path.basename(old_path)
-        self.get(old_path,  temp_path)
-        self.put(temp_path, new_path)
-        self.delete(old_path)
-        return new_path
 
     def url(self, filename):
         if filename:
